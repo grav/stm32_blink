@@ -12,7 +12,24 @@ Notes:
 
 ## Pinout
 
-<img src='nucleo_f303k8_2017_10_10.png' width='400'>
+<img src='nucleo_f303k8_2017_10_10.png' width='500'>
+
+## Config
+
+Pins were initially configured using STM32CubeMX.
+
+So for instance, Pin 5 (PA5) was configured for PWM (timer 2, channel 1) in STM32CubeMX, resulting in:
+- the `stm32_blink.ioc` config file being updated:
+- the `stm32f3xx_hal_msp.c` file being updated with some setup code
+
+Afterwards, to change PWM duty cycle in a more precise manner, using interrupts, Claude updated the `stm32f3xx_hal_msp.c` file with some setup code for the timer that drives the interrupt callback, the `stm32f3xx_it.c` file with some code that actually enables the interrupt handler, and of course the `main.c` with the handler itself.
+
+At this point, the `.ioc` config file is out of sync with the `.c` files, but it seems that Claude was also able to update the config file from looking at the `.c` files.
+
+## Circuit
+
+
+
 
 ## Compiling/running
 
