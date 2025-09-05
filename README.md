@@ -10,6 +10,10 @@ Notes:
     - Makefile worked out-of-the-box
     - project settings are stored in an `.ioc` file
 
+## Pinout
+
+<img src='nucleo_f303k8_2017_10_10.png' width='400'>
+
 ## Compiling/running
 
 ```
