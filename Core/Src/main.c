@@ -41,11 +41,12 @@
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+volatile uint32_t pulse = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -53,6 +54,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -93,14 +95,14 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   
   /* Start PWM on TIM2 Channel 1 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   
-  uint32_t pulse = 0;
-  uint32_t step_delay_us = 18; /* ~18us per step for 220Hz (1/220Hz = 4.5ms, 4500us/256 steps ≈ 18us) */
-  uint32_t last_time = 0;
+  /* Start TIM3 for interrupt-based PWM control */
+  HAL_TIM_Base_Start_IT(&htim3);
   
   /* USER CODE END 2 */
 
@@ -108,16 +110,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {    
-    /* Generate 220Hz sawtooth wave using PWM */
-    uint32_t current_time = HAL_GetTick() * 1000; /* Convert to microseconds (approximate) */
-    
-    if (current_time - last_time >= step_delay_us)
-    {
-      __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
-      pulse++;
-      if (pulse > 255) pulse = 0; /* Reset for sawtooth */
-      last_time = current_time;
-    }
+    /* PWM duty cycle is now controlled by TIM3 interrupt */
+    /* Main loop can be used for other tasks */
+    HAL_Delay(100); /* Small delay to prevent busy waiting */
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -220,6 +215,51 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 8-1; /* 8MHz/8 = 1MHz */
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 18-1; /* ~18us period for 56.32kHz (1MHz/18 ≈ 55.6kHz) */
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -286,7 +326,21 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+/**
+  * @brief  Timer period elapsed callback
+  * @param  htim: Timer handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM3)
+  {
+    /* Update PWM duty cycle for sawtooth wave */
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
+    pulse++;
+    if (pulse > 255) pulse = 0; /* Reset for sawtooth */
+  }
+}
 /* USER CODE END 4 */
 
 /**
