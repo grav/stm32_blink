@@ -47,6 +47,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 volatile uint32_t pulse = 0;
+volatile uint32_t callback_counter = 0; /* Debug: Count callback calls */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,9 +111,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {    
-    /* PWM duty cycle is now controlled by TIM3 interrupt */
-    /* Main loop can be used for other tasks */
-    HAL_Delay(100); /* Small delay to prevent busy waiting */
+    /* Main loop - PWM duty cycle is controlled by TIM3 interrupt */
+    /* Add other application tasks here if needed */
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -335,6 +336,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM3)
   {
+    /* Debug: Toggle PA0 to indicate callback execution */
+    if (callback_counter % 1000 == 0) {
+        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0);  // Visible blink every ~18ms
+    }     
+    /* Debug: Increment callback counter */
+    callback_counter++;
+    
     /* Update PWM duty cycle for sawtooth wave */
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
     pulse++;
