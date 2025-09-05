@@ -94,14 +94,30 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+  
+  /* Start PWM on TIM2 Channel 1 */
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  
+  uint32_t pulse = 0;
+  uint32_t step_delay_us = 18; /* ~18us per step for 220Hz (1/220Hz = 4.5ms, 4500us/256 steps ≈ 18us) */
+  uint32_t last_time = 0;
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {    
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0);
-    HAL_Delay(500);  
+    /* Generate 220Hz sawtooth wave using PWM */
+    uint32_t current_time = HAL_GetTick() * 1000; /* Convert to microseconds (approximate) */
+    
+    if (current_time - last_time >= step_delay_us)
+    {
+      __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
+      pulse++;
+      if (pulse > 255) pulse = 0; /* Reset for sawtooth */
+      last_time = current_time;
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -165,11 +181,10 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 255;
+  htim2.Init.Period = 255; /* 256 steps for sawtooth */
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -190,7 +205,7 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 25;
+  sConfigOC.Pulse = 0; /* Start with 0 duty cycle */
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
